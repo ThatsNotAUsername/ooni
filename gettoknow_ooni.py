@@ -192,13 +192,13 @@ def prep_xaxis():
     
 def ukraine_war_line():
     # line for when war started
-    plt.axvline(x=index_date_start_ukraine_war, color='red')
-    plt.text(x=index_date_start_ukraine_war+ 3, y=max(large_df_total_counts[y]), s='Ukraine war', fontsize=12, color='red')
+    plt.axvline(x=index_date_start_ukraine_war, color='black', linewidth=3, linestyle='-.')
+    plt.text(x=index_date_start_ukraine_war+ 3, y=max(large_df_total_counts[y]), s='Ukraine war', fontsize=14, color='black')
     
 def iranian_protest_line():
     # line for when Iranian protests started
-    plt.axvline(x=index_date_start_iranian_protests, color='green')
-    plt.text(x=index_date_start_iranian_protests+ 3, y=max(large_df_total_counts[y]), s='Iranian protests', fontsize=12, color='green')
+    plt.axvline(x=index_date_start_iranian_protests, color='black', linewidth=3, linestyle='-.')
+    plt.text(x=index_date_start_iranian_protests+ 3, y=max(large_df_total_counts[y]), s='Iranian protests', fontsize=14, color='black')
     
 # %% make some line plots:
     
@@ -213,14 +213,19 @@ for y in ['failure_count', 'measurement_count', 'confirmed_count', 'anomaly_coun
     fig, ax = plt.subplots(figsize=(16, 6))
     
     # plot with seaborn
-    sns.lineplot(data=large_df_total_counts, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='hls')
+    sns.lineplot(data=large_df_total_counts, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='Dark2', linewidth=3)  #hls
     
     prep_xaxis() # format the x-axis
 
     ukraine_war_line() # line for when war started
     iranian_protest_line() # line for when Iranian protests started
     
-    ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")  # move the legend
+    leg = ax.legend(bbox_to_anchor=(1, 0.5), loc="center left", fontsize=15)  # move the legend
+    
+    # change the line width for the legend
+    for line in leg.get_lines():
+        line.set_linewidth(4.0)
+
     
     plt.tight_layout()  # make the figure, such that you can see everything
 
@@ -369,7 +374,7 @@ nx.write_edgelist(G, folder_networks + 'network_blockedWebsites_country.txt')
 # data for different messengers. From all countries, but with iso name from countries
 messenger_names = ['Facebook',  'Whatsapp', 'Signal', 'Telegram']
 
-path_iso_countries = '../Daten/all_countries_iso_code.csv'
+path_iso_countries = '../../Daten/all_countries_iso_code.csv'
 iso_countries = pd.read_csv(path_iso_countries)  # country-codes to country names
 
 messenger_df = pd.DataFrame()
@@ -407,7 +412,7 @@ for messenger in messenger_names:
         
         df_to_use = messenger_considered_countries[messenger_considered_countries['messenger']==messenger]  # use only data for given messenger
         
-        sns.lineplot(data=df_to_use, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='hls')  # plot with seaborn
+        sns.lineplot(data=df_to_use, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='Dark2', linewidth=3)  # plot with seaborn
         
         # format the x-axis
         prep_xaxis()
@@ -418,7 +423,10 @@ for messenger in messenger_names:
         # line for when Iranian protests started
         iranian_protest_line()
 
-        ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")  # move the legend
+        leg = ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")  # move the legend
+        
+        for line in leg.get_lines():
+            line.set_linewidth(4.0)
         
         plt.title('Blocked messengers', fontsize=25)  # title
         
