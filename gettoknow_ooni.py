@@ -42,6 +42,11 @@ from datetime import date, datetime
 from matplotlib import animation
 import numpy as np
 
+import read_in_Oonidata
+
+create_gif = False # creating gif takes forever
+
+
 # !!! snowflake and Tor
 
 #%% Variables which could or should be changed by users
@@ -54,7 +59,7 @@ file_name_end_domain = '_by_domain.csv'
 all_file_names = os.listdir(path_to_data_folder)  # in case anyone is interested
 
 # countries
-given_countries = ['Iran', 'Russia', 'Germany', 'Belarus', 'China', 'USA', 'Hungary', 'Ukraine']
+given_countries = ['Iran', 'Russia', 'Germany', 'Belarus', 'USA', 'Hungary', 'Ukraine', 'China']  #China
 
 # interesting domains:
 given_domains = ['Telegram', 'WhatsApp', 'Signal']  #search for these names, not case sensitive
@@ -82,28 +87,9 @@ folder_gifs = 'output/gifs/'
 if not os.path.exists(folder_gifs):
     os.makedirs(folder_gifs)  
 
-#%% Create large dataframe containing all necessary information
+#%% Read in data
 
-# read in the data for the different countries
-large_df = pd.DataFrame()
-
-for country in given_countries:
-
-    current_df = pd.read_csv(path_to_data_folder + country + file_name_end_domain)
-    current_df['Country'] = country
-    
-    large_df = pd.concat([large_df, current_df])
-
-# create df containin if a website is blocked or not. Thus not the counts but 0 and 1
-large_df_original = large_df.copy()
-
-large_df['anomaly_count'] = large_df['anomaly_count']>large_df['ok_count']
-large_df['confirmed_count'] = large_df['confirmed_count']>large_df['ok_count'].astype(int)
-large_df['anomaly_count'] = large_df['anomaly_count'].astype(int)
-large_df['confirmed_count'] = large_df['confirmed_count'].astype(int)
-
-large_df['confANDano'] = large_df['anomaly_count'] + large_df['confirmed_count']
-
+large_df_original, large_df = read_in_Oonidata.ooni_for_countries(given_countries)
 
 
 # %% create some grouped and sorted df
@@ -190,15 +176,15 @@ def prep_xaxis():
     
     ax.xaxis.label.set_size(fontsize=14)  # increase fontsize
     
-def ukraine_war_line():
+def ukraine_war_line(y):
     # line for when war started
     plt.axvline(x=index_date_start_ukraine_war, color='black', linewidth=3, linestyle='-.')
-    plt.text(x=index_date_start_ukraine_war+ 3, y=max(large_df_total_counts[y]), s='Ukraine war', fontsize=14, color='black')
+    plt.text(x=index_date_start_ukraine_war+ 3, y=y, s='Ukraine war', fontsize=14, color='black')
     
-def iranian_protest_line():
+def iranian_protest_line(y):
     # line for when Iranian protests started
     plt.axvline(x=index_date_start_iranian_protests, color='black', linewidth=3, linestyle='-.')
-    plt.text(x=index_date_start_iranian_protests+ 3, y=max(large_df_total_counts[y]), s='Iranian protests', fontsize=14, color='black')
+    plt.text(x=index_date_start_iranian_protests+ 3, y=y, s='Iranian protests', fontsize=14, color='black')
     
 # %% make some line plots:
     
@@ -216,9 +202,9 @@ for y in ['failure_count', 'measurement_count', 'confirmed_count', 'anomaly_coun
     sns.lineplot(data=large_df_total_counts, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='Dark2', linewidth=3)  #hls
     
     prep_xaxis() # format the x-axis
-
-    ukraine_war_line() # line for when war started
-    iranian_protest_line() # line for when Iranian protests started
+    maxy = max(large_df_total_counts[y])
+    ukraine_war_line(maxy) # line for when war started
+    iranian_protest_line(maxy) # line for when Iranian protests started
     
     leg = ax.legend(bbox_to_anchor=(1, 0.5), loc="center left", fontsize=15)  # move the legend
     
@@ -371,30 +357,8 @@ nx.write_edgelist(G, folder_networks + 'network_blockedWebsites_country.txt')
 #      read in data
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# data for different messengers. From all countries, but with iso name from countries
 messenger_names = ['Facebook',  'Whatsapp', 'Signal', 'Telegram']
-
-path_iso_countries = '../../Daten/all_countries_iso_code.csv'
-iso_countries = pd.read_csv(path_iso_countries)  # country-codes to country names
-
-messenger_df = pd.DataFrame()
-
-#  create one large df for the messenger data:
-for messenger in messenger_names:
-    current_df = pd.read_csv(path_to_data_folder + 'all_countries_' + messenger + '.csv')
-    current_df['messenger'] = messenger 
-    messenger_df = pd.concat([messenger_df, current_df])
-
-# messenger_df.head()
-messenger_df.set_index(keys='probe_cc', inplace=True)  # set index as iso country code
-
-# merge country names to the messenger dataset:
-iso_countries.rename({'Code':'probe_cc', 'Name':'Country'}, inplace=True, axis=1)  # names as in the other dataframes
-iso_countries.set_index(keys='probe_cc', inplace=True)  # set index as iso country code
-iso_countries.replace({'Iran, Islamic Republic of':'Iran', 'Russian Federation':'Russia', 'United States':'USA'}, inplace=True)  # we want Iran, otherwise wont match the other data
-
-messenger_df = messenger_df.merge(iso_countries, how="left", on="probe_cc")
-messenger_df.reset_index(inplace=True)
+messenger_df = read_in_Oonidata.ooni_messengers(messenger_names = messenger_names)
 
 messenger_considered_countries = messenger_df[messenger_df['Country'].isin(given_countries)]  # keep those which we analyzed before
 
@@ -412,16 +376,17 @@ for messenger in messenger_names:
         
         df_to_use = messenger_considered_countries[messenger_considered_countries['messenger']==messenger]  # use only data for given messenger
         
-        sns.lineplot(data=df_to_use, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='Dark2', linewidth=3)  # plot with seaborn
+        sns.lineplot(data=df_to_use, x='measurement_start_day', y=y, hue='Country',marker='o', ax=ax, markersize=4, alpha=.7, palette='Dark2')  # plot with seaborn
         
         # format the x-axis
         prep_xaxis()
         
+        maxy = max(df_to_use[y])
         # line for when war started
-        ukraine_war_line()
+        ukraine_war_line(maxy)
         
         # line for when Iranian protests started
-        iranian_protest_line()
+        iranian_protest_line(maxy)
 
         leg = ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")  # move the legend
         
@@ -452,12 +417,13 @@ for country in given_countries:
         prep_xaxis()
         ax.yaxis.label.set_size(fontsize=14)  # increase fontsize
         
+        maxy = max(df_to_use[y])
         # line for when war started
-        ukraine_war_line()
+        ukraine_war_line(maxy)
         
         # line for when Iranian protests started
-        iranian_protest_line()
-# bbox_to_anchor=(0.5, -0.5) , fancybox=True, shadow=True, ncol=5
+        iranian_protest_line(maxy)
+
         lgd = plt.legend(loc='upper center', bbox_to_anchor=(0.1, 0.9), fontsize=15)  # move the legend
         
         plt.title('Blocked messengers in ' + country, fontsize=25)  # title
@@ -472,55 +438,58 @@ for country in given_countries:
         #--------- as gif: --------
         # !!!  Attention! Takes forever
         
-        df_to_use = messenger_considered_countries[messenger_considered_countries['Country']==country]
+        if create_gif:
         
-        # fig, ax = plt.subplots(figsize=(16, 6))
-        all_dates = list(set((df_to_use['measurement_start_day'])))
-        number_dates = len(all_dates)
-        
-        all_dates.sort() # dates are not ordered anymore, thus we first have to order them: 
-        
-        if (len(all_dates) - number_dates)>0:
-            all_dates = all_dates[:number_dates]
-        df_to_use = df_to_use[df_to_use['measurement_start_day'].isin(all_dates)]
-        
-        fig, ax = plt.subplots(figsize=(16, 6))
-        plt.xlim(0, len(all_dates))
-        plt.xticks(range(len(all_dates)))
-        ax.set_xticklabels(all_dates[:len(all_dates)])
-        
-        # line for when war started
-        ukraine_war_line()
-        
-        # iranian protests started
-        iranian_protest_line()
-        
-        n = 20  # Keeps every nth label
-        [l.set_visible(False) for (i,l) in enumerate(ax.xaxis.get_ticklabels()) if i % n != 0]
-        plt.ylim(0, np.max(df_to_use[y]))
-        
-        # rotate ticks, better readible
-        plt.xticks(rotation=45, fontsize=12)
-        
-        ax.yaxis.label.set_size(fontsize=14)  # increase fontsize
-        
-        plt.title('Blocked messengers in ' + country, fontsize=25)  # title
-        
-        # ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.5), fancybox=True, shadow=True, ncol=5)
-
-        def animate(i):
-            data = df_to_use[df_to_use['measurement_start_day'].isin(all_dates[:int(i+1)])]
-            p = sns.lineplot(data=data, x='measurement_start_day', y=y, hue='messenger',
-                             marker='o', ax=ax, markersize=4, alpha=.7, palette='hls', linewidth = 4)
-            handles, labels = plt.gca().get_legend_handles_labels()
-            by_label = dict(zip(labels, handles))
-            # plt.legend(by_label.values(), by_label.keys(), loc='upper center', bbox_to_anchor=(0.5, 1.1), fancybox=True, shadow=True, ncol=5)
-            plt.legend(by_label.values(), by_label.keys(), loc='upper center', bbox_to_anchor=(0.1, 0.9), fontsize=15)  # move the legend
-            plt.tight_layout()  # make the figure, such that you can see everything
-            return p 
-        anim = animation.FuncAnimation(fig, animate, frames=len(df_to_use[y]), interval=2)
-        writergif = animation.PillowWriter(fps=15)  
-        anim.save(folder_gifs + y + '_' + country + '.gif',writer=writergif)
+            df_to_use = messenger_considered_countries[messenger_considered_countries['Country']==country]
+            
+            # fig, ax = plt.subplots(figsize=(16, 6))
+            all_dates = list(set((df_to_use['measurement_start_day'])))
+            number_dates = len(all_dates)
+            
+            all_dates.sort() # dates are not ordered anymore, thus we first have to order them: 
+            
+            if (len(all_dates) - number_dates)>0:
+                all_dates = all_dates[:number_dates]
+            df_to_use = df_to_use[df_to_use['measurement_start_day'].isin(all_dates)]
+            
+            fig, ax = plt.subplots(figsize=(16, 6))
+            plt.xlim(0, len(all_dates))
+            plt.xticks(range(len(all_dates)))
+            ax.set_xticklabels(all_dates[:len(all_dates)])
+            
+            maxy=np.max(df_to_use[y])
+            # line for when war started
+            ukraine_war_line(maxy)
+            
+            # iranian protests started
+            iranian_protest_line(maxy)
+            
+            n = 20  # Keeps every nth label
+            [l.set_visible(False) for (i,l) in enumerate(ax.xaxis.get_ticklabels()) if i % n != 0]
+            plt.ylim(0, np.max(df_to_use[y]))
+            
+            # rotate ticks, better readible
+            plt.xticks(rotation=45, fontsize=12)
+            
+            ax.yaxis.label.set_size(fontsize=14)  # increase fontsize
+            
+            plt.title('Blocked messengers in ' + country, fontsize=25)  # title
+            
+            # ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.5), fancybox=True, shadow=True, ncol=5)
+    
+            def animate(i):
+                data = df_to_use[df_to_use['measurement_start_day'].isin(all_dates[:int(i+1)])]
+                p = sns.lineplot(data=data, x='measurement_start_day', y=y, hue='messenger',
+                                 marker='o', ax=ax, markersize=4, alpha=.7, palette='hls', linewidth = 4)
+                handles, labels = plt.gca().get_legend_handles_labels()
+                by_label = dict(zip(labels, handles))
+                # plt.legend(by_label.values(), by_label.keys(), loc='upper center', bbox_to_anchor=(0.5, 1.1), fancybox=True, shadow=True, ncol=5)
+                plt.legend(by_label.values(), by_label.keys(), loc='upper center', bbox_to_anchor=(0.1, 0.9), fontsize=15)  # move the legend
+                plt.tight_layout()  # make the figure, such that you can see everything
+                return p 
+            anim = animation.FuncAnimation(fig, animate, frames=len(df_to_use[y]), interval=2)
+            writergif = animation.PillowWriter(fps=15)  
+            anim.save(folder_gifs + y + '_' + country + '.gif',writer=writergif)
         
 
   

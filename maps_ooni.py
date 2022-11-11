@@ -117,7 +117,7 @@ for y in ['anomaly_count', 'confirmed_count']:
 # list(df_blocked_websites.columns)
 
 all_dates = list(df_blocked_websites['measurement_start_day'])
-all_dates_third = list(set(all_dates))[::10]  # every tenth, otherwise too many and my computer faints
+all_dates_third = list(set(all_dates))[::20]  # every tenth, otherwise too many and my computer faints
 
 df_to_use = df_blocked_websites[df_blocked_websites['measurement_start_day'].isin(all_dates_third)]
 
@@ -127,4 +127,5 @@ fig = px.choropleth(df_to_use, locations='ISO3', color='confirmed_count',
                            range_color=(min(df_to_use['confirmed_count']), max(df_to_use['confirmed_count']))
                           )    
     
-fig.write_html(folder_maps + "heatmap_blocked_websites.html")    
+fig.write_html(folder_maps + "heatmap_blocked_websites_smaller.html")
+fig.write_json(folder_maps + "heatmap_blocked_websites_smaller.json")
