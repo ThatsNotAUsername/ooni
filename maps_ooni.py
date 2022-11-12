@@ -12,6 +12,8 @@ We visualize this data using a world map
 
 """
 
+do_html =False
+
 from matplotlib import pyplot as plt
 import plotly.express as px
 import pandas as pd
@@ -104,7 +106,17 @@ for y in ['anomaly_count', 'confirmed_count']:
                                geojson=gj,
                                range_color=(0, max(messenger_df_all_counts['anomaly_count']))
                               )
-    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    # fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    # make the colorbar where it is supposed to be and a nice size 
+    fig.update_layout(margin={"r":0,"t":0,"l":5,"b":0},
+        coloraxis_colorbar=dict(
+        title="",
+        thicknessmode="pixels", thickness=20,
+        lenmode="pixels", len=280
+    ), 
+        title_text=y , title_x=0.5, title_y=.85
+        )
+    
     fig.write_image(folder_maps + 'heatmap_websites_' + y + '.png')
     
     fig = px.scatter_geo(df_blocked_websites_total_counts, locations="ISO_A3",
@@ -115,17 +127,17 @@ for y in ['anomaly_count', 'confirmed_count']:
 
 # %% as animation:
 # list(df_blocked_websites.columns)
-
-all_dates = list(df_blocked_websites['measurement_start_day'])
-all_dates_third = list(set(all_dates))[::20]  # every tenth, otherwise too many and my computer faints
-
-df_to_use = df_blocked_websites[df_blocked_websites['measurement_start_day'].isin(all_dates_third)]
-
-fig = px.choropleth(df_to_use, locations='ISO3', color='confirmed_count',
-                           color_continuous_scale="viridis", locationmode='ISO-3',
-                           geojson=gj, animation_frame="measurement_start_day",
-                           range_color=(min(df_to_use['confirmed_count']), max(df_to_use['confirmed_count']))
-                          )    
+if do_html:
+    all_dates = list(df_blocked_websites['measurement_start_day'])
+    all_dates_third = list(set(all_dates))[::20]  # every tenth, otherwise too many and my computer faints
     
-fig.write_html(folder_maps + "heatmap_blocked_websites_smaller.html")
-fig.write_json(folder_maps + "heatmap_blocked_websites_smaller.json")
+    df_to_use = df_blocked_websites[df_blocked_websites['measurement_start_day'].isin(all_dates_third)]
+    
+    fig = px.choropleth(df_to_use, locations='ISO3', color='confirmed_count',
+                               color_continuous_scale="viridis", locationmode='ISO-3',
+                               geojson=gj, animation_frame="measurement_start_day",
+                               range_color=(min(df_to_use['confirmed_count']), max(df_to_use['confirmed_count']))
+                              )    
+        
+    fig.write_html(folder_maps + "heatmap_blocked_websites_smaller.html")
+    fig.write_json(folder_maps + "heatmap_blocked_websites_smaller.json")
